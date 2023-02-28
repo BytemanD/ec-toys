@@ -24,6 +24,16 @@ def cleanup_vm(
 ):
     log.basic_config(logging.DEBUG if debug else logging.INFO)
 
+    if all([not name, not host, not status]):
+        no = {'n', 'no'}
+        invalid_input = no.union({'y', 'yes'})
+        sure = input('Are you sure to cleanup all vms (y/n):')
+        while sure not in invalid_input:
+            sure = input('Please input (y/n):')
+
+        if sure in no:
+            return
+
     mgr = manager.OpenstackManager()
     mgr.delete_vms(name=name, host=host, status=status, workers=workers)
 
