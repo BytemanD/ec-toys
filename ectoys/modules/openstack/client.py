@@ -26,17 +26,23 @@ nova_extensions = [ext for ext in
 
 class OpenstackClient(object):
     V3_AUTH_KWARGS = ['username', 'password', 'project_name',
-                      'user_domain_name', 'project_domain_name']
+                      'user_domain_name', 'project_domain_name',
+                      'region_name']
 
     def __init__(self, *args, **kwargs):
+        region_name = kwargs.pop('region_name', None)
         self.auth = v3.Password(*args, **kwargs)
         self.session = Session(auth=self.auth)
         self.keystone = client.Client(session=self.session)
-        self.neutron = neutron_client.Client(session=self.session)
+        self.neutron = neutron_client.Client(session=self.session,
+                                             region_name=region_name)
         self.nova = nova_client.Client(NOVA_API_VERSION, session=self.session,
-                                       extensions=nova_extensions)
-        self.glance = glanceclient.Client('2', session=self.session)
-        self.cinder = cinder_client.Client('3', session=self.session)
+                                       extensions=nova_extensions,
+                                       region_name=region_name)
+        self.glance = glanceclient.Client('2', session=self.session,
+                                          region_name=region_name)
+        self.cinder = cinder_client.Client('3', session=self.session,
+                                           region_name=region_name)
 
     @classmethod
     def get_auth_info_from_env(cls):
@@ -74,10 +80,11 @@ class OpenstackClient(object):
         return self.nova.volumes.delete_server_volume(vm_id, volume_id)
 
     def create_volume(self, name, size_gb=None, image_ref=None,
-                      snapshot=None):
+                      snapshot=None, volume_type=None):
         size = size_gb or 1
         return self.cinder.volumes.create(size, name=name, imageRef=image_ref,
-                                          snapshot_id=snapshot)
+                                          snapshot_id=snapshot,
+                                          volume_type=volume_type)
 
     def get_volume(self, volume_id):
         return self.cinder.volumes.get(volume_id)
