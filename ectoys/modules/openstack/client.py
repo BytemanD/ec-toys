@@ -12,6 +12,7 @@ from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
 
 from easy2use.common import exceptions as base_exc
+from easy2use.common import retry
 from easy2use.globals import log
 
 LOG = log.getLogger(__name__)
@@ -111,6 +112,25 @@ class OpenstackClient(object):
                             key=lambda x: x.get('start_time'))
             action_events.append((action.action, events))
         return action_events
+
+    def get_server_interfaces(self, server_id):
+        return self.nova.servers.interface_list(server_id)
+
+    def detach_server_interface(self, server_id, port_id, wait=False,
+                                interval=5, timeout=600):
+        self.detach_interface(server_id, port_id)
+
+        if not wait:
+            return
+
+        def _check_interface():
+            interfaces = self.get_server_interfaces(server_id)
+            return all(interface.id != port_id for interface in interfaces)
+
+        LOG.debug('[vm: %s] interface %s detaching', server_id, port_id)
+        retry.retry_untile_true(_check_interface,
+                                interval=interval, timeout=timeout)
+        LOG.debug('[vm: %s] interface %s detached', server_id, port_id)
 
 
 def factory():

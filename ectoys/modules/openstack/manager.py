@@ -30,7 +30,7 @@ def create_random_str(length):
 
 
 class OpenstackManager:
-    
+
     def __init__(self):
         self.client = client.factory()
         self.flavors_cached = {}
@@ -89,30 +89,37 @@ class OpenstackManager:
 
         return vm
 
-    def delete_vm(self, vm, wait=True):
-        try:
+    def delete_vm(self, vm, wait=True, force=False):
+        if force and not hasattr(vm, 'force_delete'):
+            raise Exception('force delete is not support')
+        if force:
+            vm.force_delete()
+        else:
             vm.delete()
-            LOG.debug('[vm: %s] deleting', vm.id)
-            if wait:
+        LOG.debug('[vm: %s] deleting', vm.id)
+        if wait:
+            try:
                 self._wait_for_vm(vm, status='deleted')
-        except nova_exc.NotFound:
-            LOG.debug('[vm: %s] deleted', vm.id)
+            except nova_exc.NotFound:
+                LOG.debug('[vm: %s] deleted', vm.id)
         return vm
 
     def delete_vms(self, name=None, host=None, status=None, all_tenants=False,
-                   workers=None, ):
+                   workers=None, force=False):
         workers = workers or 1
-        servers = self.find_servers(name=name, status=status,host=host,
-                                             all_tenants=all_tenants)
+        servers = self.find_servers(name=name, status=status, host=host,
+                                    all_tenants=all_tenants)
         LOG.info('found %s deletable server(s)', len(servers))
         if not servers:
             return
 
-        bar = pbr.factory(len(servers))
-        LOG.info('delete %s vms ...', len(servers))
         with futures.ThreadPoolExecutor(max_workers=workers) as executor:
-            for _ in executor.map(self.delete_vm, servers):
-                bar.update(1)
+            tasks = [executor.submit(self.delete_vm, vm, force=force)
+                    for vm in servers]
+
+            with pbr.progressbar(len(servers), description='delete vm') as bar:
+                for _ in futures.as_completed(tasks):
+                    bar.update(1)
         bar.close()
 
     def create_volumes(self, size, name=None, num=1, workers=None, image=None,
@@ -178,3 +185,26 @@ class OpenstackManager:
                             finish_func=compute_volume_finished)
 
         return vol
+
+    def attach_interfaces(self, server_id, net_id, num=1):
+        vm = self.client.nova.servers.get(server_id)
+        bar = pbr.factory(num, description='attach interfaces')
+        for _ in range(num):
+            vm.interface_attach(None, net_id, None)
+            bar.update(1)
+        bar.close()
+
+    def detach_interfaces(self, server_id, port_ids=None, start=0, end=None):
+        if not port_ids:
+            port_ids = [
+                vif.id for vif in self.client.get_server_interfaces(server_id)
+            ]
+        port_ids = port_ids[start:(end or len(port_ids))]
+        LOG.info('[vm: %s] detach interfaces: %s', server_id, port_ids)
+        if not port_ids:
+            return
+        bar = pbr.factory(len(port_ids), description='detach interface',)
+        for port_id in port_ids:
+            self.client.detach_server_interface(server_id, port_id, wait=True)
+            bar.update(1)
+        bar.close()
