@@ -5,26 +5,30 @@ import pathlib
 import typer
 import typing
 
+from easy2use.globals import cli
 from easy2use.globals import log
+
+from ectoys.cmd import IntArg
+from ectoys.cmd import BoolArg
+from ectoys.cmd import log_arg_group
 from ectoys.modules import guest
+
 
 LOG = logging.getLogger(__name__)
 
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
-app = typer.Typer(context_settings=CONTEXT_SETTINGS,
-                  help='EC Guest Utils')
+parser = cli.SubCliParser('EC Guest Utils')
 
 
-@app.command(context_settings=CONTEXT_SETTINGS, help='Execute cmd in guest')
-def cmd(
-    domain: str, cmd: str,
-    debug: bool=typer.Option(False, '-d', '--debug', help='Show debug messag'),
-    host: str=typer.Option('localhost')
-):
-    log.basic_config(logging.DEBUG if debug else logging.INFO)
-
-    instance = guest.Guest(host, domain)
+@parser.add_command(
+    cli.Arg('domain', help='Domain name or uuid'),
+    cli.Arg('cmd', help='Command'),
+    cli.Arg('--host', default='localhost', help='Guest host'),
+    log_arg_group)
+def cmd(args):
+    """Execute command on guest by QGA
+    """
+    instance = guest.Guest(args.domain, host=args.host)
     try:
         result = instance.guest_exec(cmd)
         typer.echo(result)
@@ -33,32 +37,31 @@ def cmd(
     except libvirt.libvirtError as e:
         typer.echo(e.get_error_message())
 
-
-@app.command(context_settings=CONTEXT_SETTINGS, help='Update guest device')
-def update_device(
-    domain: str,
-    xml: typing.Optional[pathlib.Path],
-    host: str=typer.Option('localhost'),
-    persistent: bool=typer.Option(False, '-p', '--persistent',
-                                  help='Update with config flag'),
-    live: bool=typer.Option(False, '-l', '--live',
-                            help='Update with live flag'),
-    debug: bool=typer.Option(False, '-d', '--debug', help='Show debug messag'),
-):
-    log.basic_config(logging.DEBUG if debug else logging.INFO)
-
-    if not xml.exists():
-        typer.echo(FileNotFoundError(f'ERROR: File {xml} not exists'))
+@parser.add_command(
+    cli.Arg('domain', help='Domain name or id'),
+    cli.Arg('xml', help='The path of xml file'),
+    cli.Arg('--host', default='localhost', help='Guest host'),
+    BoolArg('-p', '--persistent', help='Update with config flag'),
+    BoolArg('-l', '--live', help='Update with live flag'),
+    log_arg_group)
+def update_device(args):
+    """Update guest device
+    """
+    xml_path = pathlib.Path(args.xml)
+    if not xml_path.exists():
+        typer.echo(FileNotFoundError(f'ERROR: File {args.xml} not exists'))
+        return 1
+    if not xml_path.is_file():
+        typer.echo(ValueError(f'ERROR: Path {args.xml} is not file'))
         return 1
 
-    instance = guest.Guest(host, domain)
-    with open(xml) as f:
-        device_xml = ''.join(f.readlines())
-        instance.update_device(device_xml, persistent=persistent, live=live)
+    instance = guest.Guest(args.domain, host=args.host)
+    instance.update_device(xml_path,
+                           persistent=args.persistent, live=args.live)
 
 
 def main():
-    app()
+    parser.call()
 
 
 if __name__ == '__main__':

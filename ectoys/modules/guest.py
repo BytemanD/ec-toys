@@ -4,6 +4,7 @@ import base64
 import time
 import logging
 import contextlib
+import pathlib
 
 import libvirt
 import libvirt_qemu
@@ -20,8 +21,8 @@ class DomainNotFound(Exception):
 
 class Guest(object):
 
-    def __init__(self, host, domain):
-        self.host = host
+    def __init__(self, domain, host=None):
+        self.host = host or 'localhost'
         self.name_or_id = domain
         self._domain = None
         self._connect = None
@@ -147,9 +148,19 @@ class Guest(object):
         self.kill(server_pid)
 
     def update_device(self, xml, persistent=False, live=False):
+        """Update guest device
+
+        Args:
+            xml (Path or str): device xml
+            persistent (bool, optional): persistent. Defaults to False.
+            live (bool, optional): live. Defaults to False.
+        """
         flags = persistent and libvirt.VIR_DOMAIN_AFFECT_CONFIG or 0
         flags |= live and libvirt.VIR_DOMAIN_AFFECT_LIVE or 0
 
-        with open(xml) as f:
-            device_xml = ''.join(f.readlines())
-            self.domain.updateDeviceFlags(device_xml, flags=flags)
+        if isinstance(xml, pathlib.Path):
+            with xml.open() as f:
+                device_xml = ''.join(f.readlines())
+        else:
+            device_xml = xml
+        self.domain.updateDeviceFlags(device_xml, flags=flags)

@@ -1,32 +1,28 @@
 import logging
-import functools
-import typer
 
-from easy2use.globals import log
 from easy2use.globals import cli
-from ectoys.modules.openstack import manager
 
-from ectoys import utils
+from ectoys.cmd import IntArg
+from ectoys.cmd import BoolArg
+from ectoys.cmd import log_arg_group
+from ectoys.modules.openstack import manager
 
 LOG = logging.getLogger(__name__)
 
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
-
-app = typer.Typer(context_settings=CONTEXT_SETTINGS, help='EC Nova Utils')
+parser = cli.SubCliParser('EC Nova Utils')
 
 
-@app.command(help='Cleanup vm')
-@utils.init_log_from_command
-def cleanup_vm(
-    name: str=typer.Option(None, '-n', '--name', help='VM name'),
-    host: str=typer.Option(None, '--host', help='VM host'),
-    status: str=typer.Option(None, '-s', '--status', help='VM status'),
-    workers: int=typer.Option(1, '-w',  '--workers',
-                              help='Num of delete workers'),
-    force: bool=typer.Option(False, '-f', '--force', help='Force delete'),
-    debug: bool=typer.Option(False, '-d', '--debug', help='Show debug messag'),
-):
-    if all([not name, not host, not status]):
+@parser.add_command(
+    cli.Arg('--host', help='VM host'),
+    cli.Arg('-n', '--name', help='Volume name. Defaults to a random string'),
+    cli.Arg('-s', '--status', help='VM status'),
+    BoolArg('-f', '--force', help='Force delete'),
+    IntArg('-w',  '--workers', help='Defaults to use the same value as num'),
+    log_arg_group)
+def cleanup_vm(args):
+    """Cleanup vm
+    """
+    if all([not args.name, not args.host, not args.status]):
         no = {'n', 'no'}
         invalid_input = no.union({'y', 'yes'})
         sure = input('Are you sure to cleanup all vms (y/n):')
@@ -35,37 +31,36 @@ def cleanup_vm(
         if sure in no:
             return
     mgr = manager.OpenstackManager()
-    mgr.delete_vms(name=name, host=host, status=status, workers=workers,
-                   force=force)
+    mgr.delete_vms(name=args.name, host=args.host, status=args.status,
+                   workers=args.workers, force=args.force)
 
 
-@app.command(context_settings=CONTEXT_SETTINGS, help='Attach inerface')
-@utils.init_log_from_command
-def attach_interface(
-    server_id: str,
-    net_id: str,
-    num: int=typer.Option(1, '-n', '--num', help='VM status'),
-    debug: bool=typer.Option(False, '-d', '--debug', help='Show debug messag'),
-):
+@parser.add_command(
+    cli.Arg('server', help='Server Id'),
+    cli.Arg('network', help='Network id'),
+    IntArg('-n', '--num', default=1, help='VM status'),
+    log_arg_group)
+def attach_interface(args):
+    """Attach inerface
+    """
     mgr = manager.OpenstackManager()
-    mgr.attach_interfaces(server_id, net_id, num=num)
+    mgr.attach_interfaces(args.server, args.network, num=args.num)
 
 
-@app.command(context_settings=CONTEXT_SETTINGS, help='Attach inerface')
-@utils.init_log_from_command
-def detach_interface(
-    server_id: str,
-    start: int=typer.Option(1, '-s', '--start',
-                            help='Start index of vm interfaces'),
-    end: int=typer.Option(None, '-e', '--end',
-                          help='Start index of vm interfaces'),
-):
+@parser.add_command(
+    cli.Arg('server', help='Server Id'),
+    IntArg('--start', default=1, help='Start index of vm interfaces'),
+    IntArg('-e', '--end', help='End index of vm interfaces'),
+)
+def detach_interface(args):
+    """Attach inerface
+    """
     mgr = manager.OpenstackManager()
-    mgr.detach_interfaces(server_id, start=start-1, end=end)
+    mgr.detach_interfaces(args.server, start=args.start-1, end=args.end)
 
 
 def main():
-    app()
+    parser.call()
 
 
 if __name__ == '__main__':
