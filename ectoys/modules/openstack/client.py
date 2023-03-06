@@ -132,6 +132,9 @@ class OpenstackClient(object):
                                 interval=interval, timeout=timeout)
         LOG.debug('[vm: %s] interface %s detached', server_id, port_id)
 
+    def list_volumes(self, all_tenants=False):
+        return self.cinder.volumes.list({'all_tenants': all_tenants})
+
 
 def factory():
     auth_url, auth_kwargs = OpenstackClient.get_auth_info_from_env()

@@ -1,6 +1,8 @@
 from concurrent import futures
 import logging
 import random
+import subprocess
+
 
 from novaclient import exceptions as nova_exc
 
@@ -37,7 +39,7 @@ class OpenstackManager:
 
     @staticmethod
     def generate_name(resource):
-        return 'ec-utils-{}-{}'.format(
+        return 'ecToys-{}-{}'.format(
             resource, date.now_str(date_fmt='%m%d-%H:%M:%S'))
 
     def get_task_state(self, vm, refresh=False):
@@ -104,6 +106,18 @@ class OpenstackManager:
                 LOG.debug('[vm: %s] deleted', vm.id)
         return vm
 
+    def _wait_for_volume_deleted(self, vol, timeout=None, interval=5):
+
+        def is_volume_not_found():
+            try:
+                self.client.cinder.volumes.get(vol.id)
+            except Exception as e:
+                LOG.debug(e)
+                return True
+
+        retry.retry_untile_true(is_volume_not_found,
+                                interval=interval, timeout=timeout)
+
     def delete_vms(self, name=None, host=None, status=None, all_tenants=False,
                    workers=None, force=False):
         workers = workers or 1
@@ -123,13 +137,14 @@ class OpenstackManager:
         bar.close()
 
     def create_volumes(self, size, name=None, num=1, workers=None, image=None,
-                       snapshot=None, volume_type=None):
-        name = name or self.generate_name(create_random_str(5))
+                       snapshot=None, volume_type=None, pbr_driver=None):
+        name = name or self.generate_name('vol')
         workers = workers or num
         LOG.info('Try to create %s volume(s), name: %s, image: %s, '
                  'snapshot: %s, workers: %s ',
                  num, name, image, snapshot, workers)
-        bar = pbr.factory(num, description='create volumes')
+        bar = pbr.factory(num, description='create volumes',
+                          driver=pbr_driver or 'logging')
         with futures.ThreadPoolExecutor(max_workers=workers) as executor:
             tasks = [
                 executor.submit(self._create_volume,
@@ -208,3 +223,55 @@ class OpenstackManager:
             self.client.detach_server_interface(server_id, port_id, wait=True)
             bar.update(1)
         bar.close()
+
+    def delete_volumes(self, volumes, workers=None):
+        LOG.debug('Try to delete %s volumes(s)', len(volumes))
+        bar = pbr.factory(len(volumes), driver='logging')
+        with futures.ThreadPoolExecutor(max_workers=workers or 1) as executor:
+            tasks = [executor.submit(self.delete_volume, vol,
+                                     wait=True) for vol in volumes]
+            LOG.info('Deleting, please be patient ...')
+            for _ in futures.as_completed(tasks):
+                bar.update(1)
+            bar.close()
+
+    def delete_volume(self, volume, wait=False):
+        LOG.debug('delete volume %s', volume.id)
+        self.client.delete_volume(volume.id)
+        if not wait:
+            return
+        self._wait_for_volume_deleted(volume, timeout=60)
+
+    def rbd_ls(self, pool):
+        status, lines = subprocess.getstatusoutput(f'rbd ls {pool}')
+        if status != 0:
+            raise RuntimeError(f'Run rbd ls failed, {lines}')
+        return lines.split('\n')
+
+    def rbd_rm(self, pool, image):
+        cmd = f'rbd remove {pool}/{image}'
+        status, output = subprocess.getstatusoutput(cmd)
+        if status != 0:
+            raise RuntimeError(f'Run rbd rm failed, {output}')
+
+    def cleanup_rbd(self, pool, workers=1):
+        volumes = [
+            'volume-{}'.format(vol.id) for vol in self.client.list_volumes()]
+        lines = self.rbd_ls(pool)
+        delete_images = [
+            line for line in lines \
+                if line and line.startswith('volume') and line not in volumes]
+        LOG.info('Found %s image(s)', len(delete_images))
+        if not delete_images:
+            return
+        LOG.info('Try to delete %s image(s) with rbd', len(delete_images))
+
+        def delete_image(image):
+            return self.rbd_rm(pool, image)
+
+        bar = pbr.factory(len(delete_images), driver='logging')
+        with futures.ThreadPoolExecutor(max_workers=workers or 1) as executor:
+            LOG.info('Deleting, please be patient ...')
+            for _ in executor.map(delete_image, delete_images):
+                bar.update(1)
+            bar.close()

@@ -24,9 +24,9 @@ def cleanup_vm(args):
     """
     if all([not args.name, not args.host, not args.status]):
         no = {'n', 'no'}
-        invalid_input = no.union({'y', 'yes'})
+        valid_input = no.union({'y', 'yes'})
         sure = input('Are you sure to cleanup all vms (y/n):')
-        while sure not in invalid_input:
+        while sure not in valid_input:
             sure = input('Please input (y/n):')
         if sure in no:
             return
@@ -51,7 +51,7 @@ def attach_interface(args):
     cli.Arg('server', help='Server Id'),
     IntArg('--start', default=1, help='Start index of vm interfaces'),
     IntArg('-e', '--end', help='End index of vm interfaces'),
-)
+    log_arg_group)
 def detach_interface(args):
     """Attach inerface
     """

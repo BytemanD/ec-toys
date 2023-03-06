@@ -2,20 +2,13 @@ import libvirt
 import logging
 import pathlib
 
-import typer
-import typing
-
 from easy2use.globals import cli
-from easy2use.globals import log
-
-from ectoys.cmd import IntArg
 from ectoys.cmd import BoolArg
 from ectoys.cmd import log_arg_group
 from ectoys.modules import guest
-
+from ectoys import utils
 
 LOG = logging.getLogger(__name__)
-
 
 parser = cli.SubCliParser('EC Guest Utils')
 
@@ -30,12 +23,12 @@ def cmd(args):
     """
     instance = guest.Guest(args.domain, host=args.host)
     try:
-        result = instance.guest_exec(cmd)
-        typer.echo(result)
+        result = instance.guest_exec(args.cmd)
+        utils.echo(result)
     except guest.DomainNotFound as e:
-        typer.echo(e)
+        print(e)
     except libvirt.libvirtError as e:
-        typer.echo(e.get_error_message())
+        print(e)
 
 @parser.add_command(
     cli.Arg('domain', help='Domain name or id'),
@@ -49,10 +42,10 @@ def update_device(args):
     """
     xml_path = pathlib.Path(args.xml)
     if not xml_path.exists():
-        typer.echo(FileNotFoundError(f'ERROR: File {args.xml} not exists'))
+        utils.echo(FileNotFoundError(f'ERROR: File {args.xml} not exists'))
         return 1
     if not xml_path.is_file():
-        typer.echo(ValueError(f'ERROR: Path {args.xml} is not file'))
+        utils.echo(ValueError(f'ERROR: Path {args.xml} is not file'))
         return 1
 
     instance = guest.Guest(args.domain, host=args.host)

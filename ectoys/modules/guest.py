@@ -34,6 +34,7 @@ class Guest(object):
         return self._connect
 
     def _lookup_domain(self):
+        LOG.debug('look up domain %s', self.name_or_id)
         if self._domain:
             return
         for func in [self.connect.lookupByName,
@@ -61,6 +62,8 @@ class Guest(object):
         param: cmd   list or str
         """
         cmd_list = isinstance(cmd, str) and cmd.split() or cmd
+        if not cmd_list:
+            raise ValueError('Cmd is empty')
         cmd_obj = {'execute': 'guest-exec',
                    'arguments': {'capture-output': True,
                                  'path': cmd_list[0], 'arg': cmd_list[1:]}}
