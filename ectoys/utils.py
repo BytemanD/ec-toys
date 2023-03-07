@@ -1,20 +1,10 @@
 import functools
 import logging
 import json
+import os
+import time
 
-from easy2use.globals import log
-
-
-def init_log_from_command(func):
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        log.basic_config(
-            kwargs.get('debug') and logging.DEBUG or logging.INFO
-        )
-        func(*args, **kwargs)
-
-    return wrapper
+LOG = logging.getLogger(__name__)
 
 
 def wait_user_input(prompt, valid_values, invalid_help):
@@ -23,6 +13,19 @@ def wait_user_input(prompt, valid_values, invalid_help):
         user_input = input(invalid_help)
 
     return user_input
+
+
+def load_env(env_file):
+    with open(env_file) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.strip().startswith('#'):
+                continue
+            env = line.split()[-1]
+            if not env:
+                continue
+            k, v = env.split('=')
+            os.environ[k] = v
 
 
 # TODO: move this to easy2use
@@ -37,3 +40,36 @@ def echo(message=None, list_join: str=None):
         print(json.dumps(message, indent=True))
 
     print(message or '')
+
+
+def do_times(options=None):
+    def wrapper(func):
+        @functools.wraps(func)
+        def wrapper_func(*args, **kwargs):
+            run_times, run_interval = (options.times, options.interval) \
+                if options else (1, 1)
+            LOG.info('do %s %s time(s)', func.__name__, run_times)
+            for i in range(run_times):
+                LOG.debug('do %s %s', func.__name__, i + 1)
+                result = func(*args, **kwargs)
+                time.sleep(run_interval)
+            return result
+
+        return wrapper_func
+
+    return wrapper
+
+
+# TODO: move this to easy2use
+def run_processes(func, args=(), maps=None, max_workers=1, nums=None):
+    from concurrent import futures
+
+    with futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
+        if maps:
+            tasks = executor.map(func, maps)
+        elif nums:
+            tasks = [executor.submit(func, *args) for _ in range(nums)]
+        for task in tasks:
+            task.done()
+            yield
+

@@ -1,13 +1,21 @@
 import logging
 
+
 from easy2use.globals import cli
+from easy2use.globals import log
 
 from ectoys.cmd import IntArg
 from ectoys.cmd import BoolArg
 from ectoys.cmd import log_arg_group
+from ectoys.common import conf
 from ectoys.modules.openstack import manager
+from ectoys.modules.openstack import task
+
+from ectoys import utils
 
 LOG = logging.getLogger(__name__)
+
+CONF = conf.CONF
 
 parser = cli.SubCliParser('EC Nova Utils')
 
@@ -30,6 +38,7 @@ def cleanup_vm(args):
             sure = input('Please input (y/n):')
         if sure in no:
             return
+
     mgr = manager.OpenstackManager()
     mgr.delete_vms(name=args.name, host=args.host, status=args.status,
                    workers=args.workers, force=args.force)
@@ -53,10 +62,36 @@ def attach_interface(args):
     IntArg('-e', '--end', help='End index of vm interfaces'),
     log_arg_group)
 def detach_interface(args):
-    """Attach inerface
+    """Detach inerface
     """
     mgr = manager.OpenstackManager()
     mgr.detach_interfaces(args.server, start=args.start-1, end=args.end)
+
+
+@parser.add_command(
+    cli.Arg('-c', '--conf', help='Config file'), 
+    log.get_args()[0])
+def test_vm(args):
+    """Test VM
+    """
+    import pathlib
+
+    LOG.debug('start to test vm')
+    if args.conf:
+        conf.load_configs([args.conf])
+    else:
+        conf.load_configs(['/etc/ecutils/ec-nova.conf',
+                           pathlib.Path('etc', 'ec-nova.conf').absolute()])
+    if CONF.openstack.env and pathlib.Path(CONF.openstack.env).is_file():
+        utils.load_env(CONF.openstack.env)
+
+    if CONF.task.worker_type == 'process':
+        task.process_test_vm()
+    elif CONF.task.worker_type == 'coroutine':
+        task.coroutine_test_vm()
+    else:
+        raise ValueError('Invalid config worker_mode')
+
 
 
 def main():

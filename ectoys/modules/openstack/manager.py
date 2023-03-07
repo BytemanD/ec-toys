@@ -91,9 +91,13 @@ class OpenstackManager:
 
         return vm
 
+    def clean_vms(self, vms):
+        for vm in vms:
+            self.delete_vm(vm)
+
     def delete_vm(self, vm, wait=True, force=False):
         if force and not hasattr(vm, 'force_delete'):
-            raise Exception('force delete is not support')
+            raise ValueError('force delete is not support')
         if force:
             vm.force_delete()
         else:
@@ -171,6 +175,7 @@ class OpenstackManager:
     def _create_volume(self, size_gb=None, name=None, image=None,
                        snapshot=None, wait=False, interval=1,
                        volume_type=None):
+        timeout = 600
 
         def compute_volume_finished(result):
             LOG.debug('volume %s status: %s', result.id, result.status)
@@ -193,8 +198,6 @@ class OpenstackManager:
 
         if wait:
             # TODO: add timeout argument
-            timeout = 600
-
             retry.retry_for(self.client.get_volume, args=(vol.id,),
                             interval=interval, timeout=timeout,
                             finish_func=compute_volume_finished)
@@ -218,7 +221,8 @@ class OpenstackManager:
         LOG.info('[vm: %s] detach interfaces: %s', server_id, port_ids)
         if not port_ids:
             return
-        bar = pbr.factory(len(port_ids), description='detach interface',)
+        bar = pbr.factory(len(port_ids), description='detach interface',
+                          driver='logging')
         for port_id in port_ids:
             self.client.detach_server_interface(server_id, port_id, wait=True)
             bar.update(1)
@@ -275,3 +279,10 @@ class OpenstackManager:
             for _ in executor.map(delete_image, delete_images):
                 bar.update(1)
             bar.close()
+
+
+    def get_available_services(self, host=None, binary=None):
+        services = self.client.nova.services.list(host=host, binary=binary)
+        return [
+            s for s in services if s.status == 'enabled' and s.state == 'up'
+        ]
