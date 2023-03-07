@@ -9,7 +9,7 @@ python >= 3.6.0
 
 安装依赖包
 ```
-dnf install -y python3-devel libvirt-python3
+dnf install -y python3-devel libvirt-python3 libvirt-devel
 python3 -m pip install pip -U
 pip3 install python-openstackclient python-novaclient python-cinderclient python-neutron-client
 

@@ -80,7 +80,7 @@ def test_vm(args):
     if args.conf:
         conf.load_configs([args.conf])
     else:
-        conf.load_configs(['/etc/ecutils/ec-nova.conf',
+        conf.load_configs(['/etc/ectoys/ec-nova.conf',
                            pathlib.Path('etc', 'ec-nova.conf').absolute()])
     if CONF.openstack.env and pathlib.Path(CONF.openstack.env).is_file():
         utils.load_env(CONF.openstack.env)
