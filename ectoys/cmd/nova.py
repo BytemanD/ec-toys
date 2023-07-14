@@ -1,5 +1,5 @@
 import logging
-
+import pathlib
 
 from easy2use.globals import cli
 from easy2use.globals import log
@@ -10,11 +10,9 @@ from ectoys.cmd import log_arg_group
 from ectoys.common import conf
 from ectoys.modules.openstack import manager
 from ectoys.modules.openstack import task
-
 from ectoys import utils
 
 LOG = logging.getLogger(__name__)
-
 CONF = conf.CONF
 
 parser = cli.SubCliParser('EC Nova Utils')
@@ -68,14 +66,11 @@ def detach_interface(args):
     mgr.detach_interfaces(args.server, start=args.start-1, end=args.end)
 
 
-@parser.add_command(
-    cli.Arg('-c', '--conf', help='Config file'), 
-    log.get_args()[0])
+@parser.add_command(cli.Arg('-c', '--conf', help='Config file'),
+                    log.get_args()[0])
 def test_vm(args):
     """Test VM
     """
-    import pathlib
-
     LOG.debug('start to test vm')
     if args.conf:
         conf.load_configs([args.conf])
@@ -88,7 +83,10 @@ def test_vm(args):
     if CONF.task.worker_type == 'process':
         task.process_test_vm()
     elif CONF.task.worker_type == 'coroutine':
-        task.coroutine_test_vm()
+        try:
+            task.coroutine_test_vm()
+        except Exception as e:
+            logging.error("测试失败, %s", e)
     else:
         raise ValueError('Invalid config worker_mode')
 

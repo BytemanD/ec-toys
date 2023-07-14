@@ -258,16 +258,35 @@ class VmActionTest(manager.OpenstackManager):
 
     def check_services(self):
         """Make sure configed actions are all exists"""
-        host = CONF.openstack.boot_az.split(':')[-1] \
-                if CONF.openstack.boot_az else None
-        services = self.get_available_services(host=host,
+        az, host = None, None
+
+        if CONF.openstack.boot_az:
+            if ':' in CONF.openstack.boot_az:
+                az, host = CONF.openstack.boot_az.split(':')
+            else:
+                az = CONF.openstack.boot_az
+
+        services = self.get_available_services(host=host, zone=az,
                                                binary='nova-compute')
+        LOG.info('available services num: %s', len(services))
         if not services:
             if host:
                 reason = f'Compute service on {host} is not available'
             else:
                 reason = 'All compute services are not available'
             raise exceptions.NotAvailableServices(reason=reason)
+
+    def check_flavor(self):
+        """Make sure configed actions are all exists"""
+        if not CONF.openstack.flavor:
+            return
+        self._get_flavor(CONF.openstack.flavor)
+
+    def check_image(self):
+        """Make sure configed actions are all exists"""
+        if not CONF.openstack.image_id:
+            return
+        self.client.glance.images.get(CONF.openstack.image_id)
 
     def test_resize(self, vm):
         flavor = self._get_flavor(CONF.openstack.flavor)
@@ -430,9 +449,11 @@ def coroutine_test_vm():
     test_task = VmActionTest()
     test_task.check_actions()
     test_task.check_services()
+    test_task.check_flavor()
+    test_task.check_image()
 
     LOG.info('Start tasks, worker: %s, total: %s, actions: %s',
-                CONF.task.worker, CONF.task.total, CONF.task.test_actions)
+             CONF.task.worker, CONF.task.total, CONF.task.test_actions)
 
     failed = 0
     bar = pbr.factory(CONF.task.total, driver='logging')
@@ -462,6 +483,8 @@ def process_test_vm():
     test_task = VmActionTest()
     test_task.check_actions()
     test_task.check_services()
+    test_task.check_flavor()
+    test_task.check_image()
 
     LOG.info('Start task, worker: %s, total: %s, actions: %s',
              CONF.task.worker, CONF.task.total, CONF.task.test_actions)

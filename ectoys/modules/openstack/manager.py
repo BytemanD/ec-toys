@@ -281,8 +281,10 @@ class OpenstackManager:
             bar.close()
 
 
-    def get_available_services(self, host=None, binary=None):
+    def get_available_services(self, host=None, zone=None, binary=None):
         services = self.client.nova.services.list(host=host, binary=binary)
+        if zone:
+            services = [s for s in services if s.zone == zone]
         return [
             s for s in services if s.status == 'enabled' and s.state == 'up'
         ]
