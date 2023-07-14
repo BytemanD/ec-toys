@@ -1,2 +1,8 @@
 libvirt-python
+python-novaclient
+python-glanceclient
+python-neutronclient
+python-cinderclient
+python-keystoneclient
+
 https://github.com/fjboy/easy-to-use/releases/download/dev/easy2use-1.0.6.dev7-py3-none-any.whl

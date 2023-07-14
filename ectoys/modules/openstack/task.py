@@ -412,9 +412,9 @@ class VmActionTest(manager.OpenstackManager):
         retry.retry_untile_true(check_volume, interval=5, timeout=600)
         if check_with_qga:
             # qga = guest.QGAExecutor()
-            import pdb; pdb.set_trace()
+            # TODO: check with qga
             pass
-        
+            LOG.warning('[vm: %s] TODO check with qga')
         LOG.info('[vm: %s] attached volume %s', vm.id, volume_id)
 
     def _detach_volume(self, vm, volume_id, wait=False):
@@ -469,9 +469,10 @@ def coroutine_test_vm():
             finally:
                 bar.update(1)
 
-    if failed:
-        LOG.error(colorstr.RedStr('Summary: failed: %s/%s'),
-                  failed, CONF.task.total)
+    LOG.info('Summary: total: %s, ' +
+             str(colorstr.GreenStr('success: %s')) + ", " +
+             str(colorstr.RedStr('failed: %s')) + ".",
+             CONF.task.total, CONF.task.total - failed, failed)
 
 
 def do_test_vm():

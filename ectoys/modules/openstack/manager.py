@@ -206,11 +206,8 @@ class OpenstackManager:
 
     def attach_interfaces(self, server_id, net_id, num=1):
         vm = self.client.nova.servers.get(server_id)
-        bar = pbr.factory(num, description='attach interfaces')
         for _ in range(num):
             vm.interface_attach(None, net_id, None)
-            bar.update(1)
-        bar.close()
 
     def detach_interfaces(self, server_id, port_ids=None, start=0, end=None):
         if not port_ids:
@@ -221,12 +218,9 @@ class OpenstackManager:
         LOG.info('[vm: %s] detach interfaces: %s', server_id, port_ids)
         if not port_ids:
             return
-        bar = pbr.factory(len(port_ids), description='detach interface',
-                          driver='logging')
+
         for port_id in port_ids:
             self.client.detach_server_interface(server_id, port_id, wait=True)
-            bar.update(1)
-        bar.close()
 
     def delete_volumes(self, volumes, workers=None):
         LOG.debug('Try to delete %s volumes(s)', len(volumes))

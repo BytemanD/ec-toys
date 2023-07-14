@@ -6,10 +6,10 @@ from easy2use.globals import cfg
 LOG = logging.getLogger(__name__)
 CONF = cfg.CONF
 
-default_opts = [
-    cfg.BooleanOption('debug', default=False),
-    cfg.Option('log_to', default=None),
-]
+# default_opts = [
+#     cfg.BooleanOption('debug', default=False),
+#     cfg.Option('log_to', default=None),
+# ]
 
 openstack_opts = [
     cfg.Option('env'),
@@ -83,7 +83,8 @@ def load_configs(conf_files):
         LOG.warning('config file not found')
 
 
-CONF.register_opts(default_opts)
+# CONF.register_opts(default_opts)
+
 CONF.register_opts(openstack_opts, group='openstack')
 CONF.register_opts(task_opts, group='task')
 CONF.register_opts(boot_opts, group='boot')
