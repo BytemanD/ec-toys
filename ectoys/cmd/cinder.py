@@ -1,5 +1,4 @@
 from concurrent import futures
-import logging
 
 from easy2use.component import pbr
 from easy2use.globals import cli
@@ -7,11 +6,13 @@ from easy2use.globals import cli
 from ectoys.cmd import IntArg
 from ectoys.cmd import BoolArg
 from ectoys.cmd import log_arg_group
-from ectoys.modules.openstack import exceptions
-from ectoys.modules.openstack import manager
-from ectoys import utils
+from ectoys.common import exceptions
+from ectoys.managers.openstack import manager
+from ectoys.common import utils
 
-LOG = logging.getLogger(__name__)
+from ectoys.common import log
+
+
 
 parser = cli.SubCliParser('EC Cinder Utils')
 

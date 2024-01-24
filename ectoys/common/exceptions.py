@@ -1,6 +1,9 @@
 
 from easy2use.common import exceptions as base_exc
 
+class ConfileNotExists(base_exc.BaseException):
+    _msg = 'conf file not exists'
+
 
 class InterfaceDetachTimeout(base_exc.BaseException):
     _msg = 'vm {vm} interface detach timeout({timeout}s)'
@@ -98,5 +101,21 @@ class NotAvailableServices(base_exc.BaseException):
     _msg = 'Not available services, reason: {reason}'
 
 
+class InvalidScenario(base_exc.BaseException):
+    _msg = 'Invalid scenario "{}"'
+
+
 class InvalidConfig(base_exc.BaseException):
     _msg = 'Invalid config, {reason}.'
+
+
+class InvalidFlavor(base_exc.BaseException):
+    _msg = 'Invalid flavor, {reason}.'
+
+
+class InvalidImage(base_exc.BaseException):
+    _msg = 'Invalid image, reason: {reason}.'
+
+
+class VMTestFailed(base_exc.BaseException):
+    _msg = 'vm {vm} {action} falied, {reason}.'

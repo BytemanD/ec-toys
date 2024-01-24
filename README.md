@@ -20,3 +20,13 @@ pip3 install python-novaclient python-glanceclient python-neutronclient \
 ```
 python3 -m pip wheel --prefer-binary --wheel-dir=dist ./
 ```
+
+## 运行
+
+1. 源码
+
+    ```
+    export PYTHONPATH=./
+    python3 ectoys/cmd/test.py
+   ```
+

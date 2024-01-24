@@ -10,12 +10,13 @@ from keystoneauth1.session import Session
 from keystoneclient.v3 import client
 from neutronclient.v2_0 import client as neutron_client
 from novaclient import client as nova_client
+from novaclient import exceptions as nova_exc
 
 from easy2use.common import exceptions as base_exc
 from easy2use.common import retry
-from easy2use.globals import log
+from ectoys.common import log
 
-LOG = log.getLogger(__name__)
+LOG = log.getLogger()
 
 NOVA_API_VERSION = "2.37"
 nova_extensions = [ext for ext in
@@ -61,7 +62,7 @@ class OpenstackClient(object):
     @classmethod
     def create_instance(cls):
         auth_url, auth_kwargs = cls.get_auth_info_from_env()
-        LOG.debug('auth info: %s', auth_kwargs)
+        LOG.debug('auth info: {}', auth_kwargs)
         return OpenstackClient(auth_url, **auth_kwargs)
 
     def attach_interface(self, net_id=None, port_id=None):
@@ -135,8 +136,11 @@ class OpenstackClient(object):
     def list_volumes(self, all_tenants=False):
         return self.cinder.volumes.list({'all_tenants': all_tenants})
 
+    def get_flavor(self, id_or_name):
+        try:
+            return self.nova.flavors.get(id_or_name)
+        except nova_exc.NotFound:
+            return self.nova.flavors.find(name=id_or_name)
 
 def factory():
-    auth_url, auth_kwargs = OpenstackClient.get_auth_info_from_env()
-    LOG.debug('auth info: %s', auth_kwargs)
-    return OpenstackClient(auth_url, **auth_kwargs)
+    return OpenstackClient.create_instance()

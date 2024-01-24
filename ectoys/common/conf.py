@@ -1,10 +1,13 @@
-import logging
 import os
 
 from easy2use.globals import cfg
+import pathlib
 
-LOG = logging.getLogger(__name__)
+from ectoys.common import log
+from ectoys.common import exceptions
+
 CONF = cfg.CONF
+LOG = log.getLogger()
 
 # default_opts = [
 #     cfg.BooleanOption('debug', default=False),
@@ -22,15 +25,11 @@ openstack_opts = [
     cfg.Option('boot_az'),
 ]
 
-task_opts = [
-    cfg.Option('worker_type', default='coroutine'),
+scenario_test_opts = [
     cfg.IntOption('total', default=1),
     cfg.IntOption('worker', default=1),
     cfg.BooleanOption('attach_net', default=False),
-    cfg.ListOption('test_actions'),
 
-    cfg.IntOption('attach_volume_nums', default=1),
-    cfg.IntOption('attach_volume_times', default=1),
 
     cfg.IntOption('attach_port_nums', default=1),
     cfg.IntOption('attach_port_times', default=1),
@@ -44,8 +43,16 @@ task_opts = [
     cfg.IntOption('migrate_wait_interval', default=5),
     cfg.IntOption('migrate_wait_timeout', default=60),
     cfg.BooleanOption('cleanup_error_vms', default=True),
-    cfg.BooleanOption('random_order', default=False),
 
+    cfg.Option('mode', default='coroutine'),
+    cfg.BooleanOption('random_order', default=False),
+    cfg.ListOption('scenarios', default=[]),
+
+    cfg.IntOption('attach_interface_nums_each_time', default=1),
+    cfg.IntOption('attach_interface_loop_times', default=2),
+
+    cfg.IntOption('attach_volume_nums_each_time', default=1),
+    cfg.IntOption('attach_volume_loop_times', default=2),
 ]
 
 boot_opts = [
@@ -66,13 +73,12 @@ hard_reboot_opts = [
      cfg.IntOption('interval', default=10),
 ]
 
-interface_opts = [
-    cfg.IntOption('attach_net_nums', default=1),
-    cfg.IntOption('attach_net_times', default=1),
-]
 
-
-def load_configs(conf_files):
+def load_configs(conf_file=None):
+    conf_files = [conf_file] if conf_file else [
+        '/etc/ectoys/ec-nova.conf',
+        pathlib.Path('etc', 'ec-nova.conf').absolute()
+    ]
     for file in conf_files:
         if not os.path.exists(file):
             continue
@@ -80,14 +86,12 @@ def load_configs(conf_files):
         CONF.load(file)
         break
     else:
-        LOG.warning('config file not found')
-
+        raise exceptions.ConfileNotExists()
 
 # CONF.register_opts(default_opts)
 
 CONF.register_opts(openstack_opts, group='openstack')
-CONF.register_opts(task_opts, group='task')
+CONF.register_opts(scenario_test_opts, group='scenario_test')
 CONF.register_opts(boot_opts, group='boot')
 CONF.register_opts(reboot_opts, group='reboot')
 CONF.register_opts(hard_reboot_opts, group='hard_reboot')
-CONF.register_opts(interface_opts, group='interface')

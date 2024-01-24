@@ -2,17 +2,15 @@ import json
 import time
 import base64
 import time
-import logging
 import contextlib
 import pathlib
 
 import libvirt
 import libvirt_qemu
 
-from easy2use.globals import log
+from ectoys.common import log
 
-LOG = logging.getLogger(__name__)
-
+LOG = log.getLogger()
 
 class DomainNotFound(Exception):
     def __init__(self, name):

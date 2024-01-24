@@ -2,8 +2,7 @@ import setuptools
 
 
 setuptools.setup(
-    setup_requires=['pbr>=5.0.0'],
+    setup_requires=['pbr>=5.0.0', 'wheel'],
     include_package_data=True,
-    use_scm_version=True,
     pbr=True,
 )

@@ -1,14 +1,12 @@
 import libvirt
-import logging
 import pathlib
 
 from easy2use.globals import cli
 from ectoys.cmd import BoolArg
 from ectoys.cmd import log_arg_group
 from ectoys.modules import guest
-from ectoys import utils
+from ectoys.common import utils
 
-LOG = logging.getLogger(__name__)
 
 parser = cli.SubCliParser('EC Guest Utils')
 

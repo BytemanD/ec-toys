@@ -1,10 +1,11 @@
 import functools
-import logging
 import json
 import os
 import time
+import pathlib
 
-LOG = logging.getLogger(__name__)
+from easy2use import date
+from ectoys.common import exceptions
 
 
 def wait_user_input(prompt, valid_values, invalid_help):
@@ -16,6 +17,10 @@ def wait_user_input(prompt, valid_values, invalid_help):
 
 
 def load_env(env_file):
+    if not env_file or not pathlib.Path(env_file).is_file():
+        raise exceptions.InvalidConfig(
+            reason='env file is not set or not exists')
+
     with open(env_file) as f:
         for line in f:
             line = line.strip()
@@ -61,15 +66,17 @@ def do_times(options=None):
 
 
 # TODO: move this to easy2use
-def run_processes(func, args=(), maps=None, max_workers=1, nums=None):
+def run_processes(func, maps=None, max_workers=1, nums=None):
     from concurrent import futures
 
     with futures.ProcessPoolExecutor(max_workers=max_workers) as executor:
         if maps:
             tasks = executor.map(func, maps)
         elif nums:
-            tasks = [executor.submit(func, *args) for _ in range(nums)]
-        for task in tasks:
-            task.done()
-            yield
+            tasks = [executor.submit(func) for _ in range(nums)]
+        for future in futures.as_completed(tasks):
+            yield future.result()
 
+def generate_name(resource):
+    return 'ecToys-{}-{}'.format(resource,
+                                 date.now_str(date_fmt='%m%d-%H:%M:%S'))
